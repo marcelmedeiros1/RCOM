@@ -19,7 +19,13 @@
 #define FALSE 0
 #define TRUE 1
 
-#define BUF_SIZE 5
+#define BUF_SIZE 1
+
+#define START 0 
+#define FLAG_RCV 1 
+#define A_RCV 2 
+#define C_RCV 3 
+#define BCC_OK 4 
 
 volatile int STOP = FALSE;
 
@@ -27,6 +33,8 @@ int main(int argc, char *argv[])
 {
     // Program usage: Uses either COM1 or COM2
     const char *serialPortName = argv[1];
+   
+    
 
     if (argc < 2)
     {
@@ -87,38 +95,49 @@ int main(int argc, char *argv[])
     }
 
     printf("New termios structure set\n");
-
+	
     // Loop for input
     unsigned char buf[BUF_SIZE + 1] = {0}; // +1: Save space for the final '\0' char
+	unsigned char ACTUAL;
+	unsigned char F, A, C;
+	A = 0x03; C= 0x03; F= 0x7E;
 
+	
+	ACTUAL = START;
+	
     while (STOP == FALSE)
 {
-    // Retorna após 5 caracteres terem sido recebidos
+    // Retorna após 1 caracteres terem sido recebidos
     int bytes = read(fd, buf, BUF_SIZE);
-
-    // Itera sobre os bytes lidos e imprime cada um como unsigned char
-    printf("Buffer values (%d bytes received):\n", bytes);
-    for (int i = 0; i < bytes; i++) {
-        // Imprime o valor em hexadecimal e decimal
-        printf("0x%02X\n", buf[i]);
-    }
-    if(buf[0] == 0x7E && buf[1] == 0x03 && buf[2] == 0x03 && buf[3] == 0x00 && buf[4] == 0x7E) {
-            unsigned char A, C, F;
-            A = 0x03;
-            C = 0x07;
-            F = 0x7E;
-
-            buf[0] = F;
-            buf[1] = A;
-            buf[2] = C;
-            buf[3] = A^C;
-            buf[4] = F;
-            
-            bytes = write(fd, buf, BUF_SIZE);
-            printf("%d bytes written\n", bytes);
-
-            STOP = TRUE;
-        }
+	switch (ACTUAL){
+		case START:
+			if(buf[0] == F) ACTUAL = FLAG_RCV;
+			break;
+		case FLAG_RCV:
+			if(buf[0] == F) ACTUAL = FLAG_RCV;
+			else if(buf[0] == A) ACTUAL = A_RCV;
+			else ACTUAL = START;
+			break;
+		case A_RCV:
+			if(buf[0] == F) ACTUAL = FLAG_RCV;
+			else if(buf[0] == C) ACTUAL = C_RCV;
+			else ACTUAL = START;
+			break;
+		case C_RCV:
+			if(buf[0] == F) ACTUAL = FLAG_RCV;
+			else if(buf[0] == 0x00) ACTUAL = BCC_OK;
+			else ACTUAL = START;
+			break;
+		case BCC_OK:
+			if(buf[0] == F) STOP=TRUE;
+			else ACTUAL = START;
+			break;
+		default:
+			break;
+		}
+		if(STOP==TRUE){
+			printf("Congrats!\n");
+		}
 }   
 
     // The while() cycle should be changed in order to respect the specifications
