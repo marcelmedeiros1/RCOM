@@ -91,11 +91,8 @@ int main(int argc, char *argv[])
 
     // Create string to send
     unsigned char buf[BUF_SIZE] = {0};
-
-    for (int i = 0; i < BUF_SIZE; i++)
-    {
-        buf[i] = 'a' + i % 26;
-    }
+    
+    
     unsigned char A, C, F;
     A = 0x03; C= 0x03; F= 0x7E;
     buf[0] = F;
@@ -109,17 +106,32 @@ int main(int argc, char *argv[])
     // The whole buffer must be sent even with the '\n'.
 
     int bytes = write(fd, buf, BUF_SIZE);
+    
     printf("%d bytes written\n", bytes);
 
     // Wait until all bytes have been written to the serial port
     sleep(1);
+    
+while (STOP == FALSE)
+{
+    // Retorna após 5 caracteres terem sido recebidos
+    int bytes = read(fd, buf, BUF_SIZE);
 
-    bytes = read(fd, buf, BUF_SIZE);
+    // Itera sobre os bytes lidos e imprime cada um como unsigned char
+    printf("Buffer values (%d bytes received):\n", bytes);
+    
+    for (int i = 0; i < bytes; i++) {
+        // Imprime o valor em hexadecimal e decimal
+        printf("0x%02X\n", buf[i]);
+    }
     if(buf[0] == 0x7E && buf[1] == 0x03 && buf[2] == 0x07 && buf[3] != 0x00 && buf[4] == 0x7E) {
         printf("Received message is correct\n");
     } else {
         printf("Received message is incorrect\n");
-    }  
+    }
+
+            STOP = TRUE;
+}   
 
     // Restore the old port settings
     if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
